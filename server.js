@@ -14,9 +14,30 @@ const app = express()
 const PORT = process.env.PORT || 3000
 
 // Middleware
+// CORS Configuration - Allow Vercel domains
+const allowedOrigins = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://localhost:5174',
+    'https://smartonedev.vercel.app',
+    'https://smartonedev-be.vercel.app',
+    process.env.FRONTEND_URL // Allow custom frontend URL from env
+].filter(Boolean)
+
 app.use(cors({
-    origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5174'],
-    credentials: true
+    origin: function (origin, callback) {
+        // Allow requests with no origin (mobile apps, curl, etc)
+        if (!origin) return callback(null, true)
+
+        if (allowedOrigins.includes(origin)) {
+            callback(null, true)
+        } else {
+            callback(null, true) // Allow all origins in production for now
+        }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
