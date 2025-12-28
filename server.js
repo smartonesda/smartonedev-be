@@ -19,6 +19,8 @@ const allowedOrigins = [
     'http://localhost:5173',
     'http://127.0.0.1:5173',
     'http://localhost:5174',
+    'https://smartonedev.vercel.app',
+    'https://smartonedev-be.vercel.app',
     process.env.FRONTEND_URL // Allow custom frontend URL from env
 ].filter(Boolean)
 
