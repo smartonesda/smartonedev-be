@@ -45,14 +45,6 @@ export const Gallery = {
                 screenshots: projectData.screenshots || [],
                 story: projectData.story || {},
                 timeline: projectData.timeline || [],
-                // 5W1H Fields
-                what: projectData.what || null,
-                who: projectData.who || null,
-                when_info: projectData.when || null,
-                where_info: projectData.where || null,
-                why: projectData.why || null,
-                how: projectData.how || null,
-                // Additional fields
                 team: projectData.team || [],
                 tech: projectData.tech || [],
                 author: projectData.author,
@@ -84,12 +76,6 @@ export const Gallery = {
         if (projectData.screenshots !== undefined) updateData.screenshots = projectData.screenshots
         if (projectData.story !== undefined) updateData.story = projectData.story
         if (projectData.timeline !== undefined) updateData.timeline = projectData.timeline
-        if (projectData.what !== undefined) updateData.what = projectData.what
-        if (projectData.who !== undefined) updateData.who = projectData.who
-        if (projectData.when !== undefined) updateData.when_info = projectData.when
-        if (projectData.where !== undefined) updateData.where_info = projectData.where
-        if (projectData.why !== undefined) updateData.why = projectData.why
-        if (projectData.how !== undefined) updateData.how = projectData.how
         if (projectData.team !== undefined) updateData.team = projectData.team
         if (projectData.tech !== undefined) updateData.tech = projectData.tech
         if (projectData.author !== undefined) updateData.author = projectData.author
