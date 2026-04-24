@@ -301,3 +301,7 @@ FOR UPDATE USING (bucket_id = 'gallery-images');
 -- 4. Allow public DELETE (for removing images)
 CREATE POLICY "allow_public_delete" ON storage.objects 
 FOR DELETE USING (bucket_id = 'gallery-images');
+
+
+ALTER TABLE gallery
+ADD COLUMN login_credentials JSONB DEFAULT '[]'::jsonb;

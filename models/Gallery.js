@@ -53,7 +53,8 @@ export const Gallery = {
                 bg_gradient: projectData.bg_gradient || 'from-red-600 to-red-900',
                 icon: projectData.icon || 'globe',
                 github_url: projectData.github_url || null,
-                demo_url: projectData.demo_url || null
+                demo_url: projectData.demo_url || null,
+                login_credentials: projectData.login_credentials || []
             }])
             .select()
             .single()
@@ -85,6 +86,7 @@ export const Gallery = {
         if (projectData.icon !== undefined) updateData.icon = projectData.icon
         if (projectData.github_url !== undefined) updateData.github_url = projectData.github_url
         if (projectData.demo_url !== undefined) updateData.demo_url = projectData.demo_url
+        if (projectData.login_credentials !== undefined) updateData.login_credentials = projectData.login_credentials
 
         const { data, error } = await supabase
             .from('gallery')
