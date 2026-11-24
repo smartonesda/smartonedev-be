@@ -96,15 +96,17 @@ app.use((err, req, res, next) => {
     })
 })
 
-// Start server
-app.listen(PORT, () => {
-    console.log(`
+// Start server (skip listening on Vercel serverless runtime)
+if (!process.env.VERCEL) {
+    app.listen(PORT, () => {
+        console.log(`
 ╔═══════════════════════════════════════════════════╗
 ║           SmartOneDev API Server                  ║
 ╠═══════════════════════════════════════════════════╣
 ║   Status: Running                                 ║
 ║   Port: ${PORT}                                      ║
 ║   Environment: ${(process.env.NODE_ENV || 'development').padEnd(20)}        ║
+║   Database: Cloud Firestore                       ║
 ║                                                   ║
 ║   Endpoints:                                      ║
 ║   - GET  /api/health                              ║
@@ -115,6 +117,7 @@ app.listen(PORT, () => {
 ║   - DELETE /api/gallery/:id (admin)               ║
 ╚═══════════════════════════════════════════════════╝
   `)
-})
+    })
+}
 
 export default app

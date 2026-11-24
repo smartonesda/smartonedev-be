@@ -6,7 +6,7 @@ import adminMiddleware from '../middleware/adminMiddleware.js'
 
 const router = express.Router()
 
-// Configure multer for memory storage (for Supabase upload)
+// Configure multer for memory storage (for Cloudinary upload)
 const upload = multer({
     storage: multer.memoryStorage(),
     limits: {
@@ -24,6 +24,7 @@ const upload = multer({
 
 // Public routes
 router.get('/', galleryController.getAll)
+router.get('/slug/:slug', galleryController.getBySlug)
 router.get('/:id', galleryController.getById)
 
 // Protected routes (admin only)

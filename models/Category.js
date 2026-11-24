@@ -1,115 +1,156 @@
-import { createClient } from '@supabase/supabase-js'
-import dotenv from 'dotenv'
+import { getDb, normalizeTimestamp } from '../config/firebase.js'
 
-dotenv.config()
+const COLLECTION = 'categories'
+const GALLERY_COLLECTION = 'gallery'
 
-const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_KEY
-)
+function generateSlug(name) {
+    return String(name)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '')
+}
+
+function serializeCategory(doc) {
+    if (!doc || !doc.exists) return null
+    const data = doc.data()
+    return {
+        id: doc.id,
+        name: data.name,
+        slug: data.slug,
+        color: data.color || '#dc2626',
+        icon: data.icon || 'folder',
+        created_at: normalizeTimestamp(data.created_at)
+    }
+}
 
 const Category = {
     // Get all categories
     async findAll() {
-        const { data, error } = await supabase
-            .from('categories')
-            .select('*')
-            .order('name', { ascending: true })
+        const db = getDb()
+        const snapshot = await db
+            .collection(COLLECTION)
+            .orderBy('name', 'asc')
+            .get()
 
-        if (error) throw error
-        return data || []
+        return snapshot.docs.map(serializeCategory)
     },
 
     // Get category by ID
     async findById(id) {
-        const { data, error } = await supabase
-            .from('categories')
-            .select('*')
-            .eq('id', id)
-            .single()
-
-        if (error) throw error
-        return data
+        const db = getDb()
+        const doc = await db.collection(COLLECTION).doc(String(id)).get()
+        return serializeCategory(doc)
     },
 
     // Get category by name
     async findByName(name) {
-        const { data, error } = await supabase
-            .from('categories')
-            .select('*')
-            .eq('name', name)
-            .single()
+        const db = getDb()
+        const snapshot = await db
+            .collection(COLLECTION)
+            .where('name', '==', name)
+            .limit(1)
+            .get()
 
-        if (error && error.code !== 'PGRST116') throw error
-        return data
+        if (snapshot.empty) return null
+        return serializeCategory(snapshot.docs[0])
+    },
+
+    // Get category by slug
+    async findBySlug(slug) {
+        const db = getDb()
+        const snapshot = await db
+            .collection(COLLECTION)
+            .where('slug', '==', slug)
+            .limit(1)
+            .get()
+
+        if (snapshot.empty) return null
+        return serializeCategory(snapshot.docs[0])
     },
 
     // Create new category
     async create(categoryData) {
-        const slug = categoryData.name
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, '-')
-            .replace(/(^-|-$)/g, '')
+        const db = getDb()
+        const name = categoryData.name.trim()
+        const slug = generateSlug(name)
 
-        const { data, error } = await supabase
-            .from('categories')
-            .insert([{
-                name: categoryData.name,
-                slug: slug,
-                color: categoryData.color || '#dc2626',
-                icon: categoryData.icon || 'folder'
-            }])
-            .select()
-            .single()
+        const existingBySlug = await this.findBySlug(slug)
+        if (existingBySlug) {
+            throw new Error('Kategori dengan slug serupa sudah ada')
+        }
 
-        if (error) throw error
-        return data
+        const now = new Date().toISOString()
+        const docData = {
+            name,
+            slug,
+            color: categoryData.color || '#dc2626',
+            icon: categoryData.icon || 'folder',
+            created_at: now
+        }
+
+        const docRef = await db.collection(COLLECTION).add(docData)
+
+        return {
+            id: docRef.id,
+            ...docData
+        }
     },
 
     // Update category
     async update(id, categoryData) {
+        const db = getDb()
+        const docRef = db.collection(COLLECTION).doc(String(id))
+        const existingDoc = await docRef.get()
+
+        if (!existingDoc.exists) {
+            return null
+        }
+
         const updateData = {}
         if (categoryData.name) {
-            updateData.name = categoryData.name
-            updateData.slug = categoryData.name
-                .toLowerCase()
-                .replace(/[^a-z0-9]+/g, '-')
-                .replace(/(^-|-$)/g, '')
+            const trimmedName = categoryData.name.trim()
+            const newSlug = generateSlug(trimmedName)
+
+            const duplicateName = await this.findByName(trimmedName)
+            if (duplicateName && duplicateName.id !== String(id)) {
+                throw new Error('Kategori dengan nama tersebut sudah ada')
+            }
+
+            const duplicateSlug = await this.findBySlug(newSlug)
+            if (duplicateSlug && duplicateSlug.id !== String(id)) {
+                throw new Error('Kategori dengan slug serupa sudah ada')
+            }
+
+            updateData.name = trimmedName
+            updateData.slug = newSlug
         }
         if (categoryData.color) updateData.color = categoryData.color
         if (categoryData.icon) updateData.icon = categoryData.icon
 
-        const { data, error } = await supabase
-            .from('categories')
-            .update(updateData)
-            .eq('id', id)
-            .select()
-            .single()
+        if (Object.keys(updateData).length > 0) {
+            await docRef.update(updateData)
+        }
 
-        if (error) throw error
-        return data
+        const updatedDoc = await docRef.get()
+        return serializeCategory(updatedDoc)
     },
 
     // Check if category is in use by any project
     async isInUse(categoryName) {
-        const { data, error } = await supabase
-            .from('gallery')
-            .select('id')
-            .eq('category', categoryName)
+        const db = getDb()
+        const snapshot = await db
+            .collection(GALLERY_COLLECTION)
+            .where('category', '==', categoryName)
             .limit(1)
+            .get()
 
-        if (error) throw error
-        return data && data.length > 0
+        return !snapshot.empty
     },
 
     // Delete category (only if not in use)
     async delete(id) {
-        const { error } = await supabase
-            .from('categories')
-            .delete()
-            .eq('id', id)
-
-        if (error) throw error
+        const db = getDb()
+        await db.collection(COLLECTION).doc(String(id)).delete()
         return true
     }
 }

@@ -1,41 +1,48 @@
 # SmartOneDev Backend API
 
-Backend API untuk website SmartOneDev - Gallery karya siswa RPL SMK.
+Backend API untuk website SmartOneDev - Gallery karya siswa RPL SMKS Antartika 1 Sidoarjo.
 
-## 🚀 Tech Stack
+## Tech Stack
 
-- **Runtime**: Node.js
+- **Runtime**: Node.js (ESM)
 - **Framework**: Express.js
-- **Database**: Supabase (PostgreSQL)
-- **Storage**: Supabase Storage
-- **Authentication**: JWT
+- **Database**: Google Cloud Firestore (Firebase Admin SDK)
+- **Image Storage**: Cloudinary (Free Tier)
+- **Authentication**: JWT (`jsonwebtoken` + `bcryptjs`)
 
-## 📁 Struktur Folder
+## Struktur Folder
 
 ```
 backend/
 ├── config/
-│   └── supabase.js         # Konfigurasi Supabase client
+│   ├── cloudinary.js         # Konfigurasi upload/delete gambar Cloudinary
+│   ├── firebase.js           # Konfigurasi Firebase Admin SDK (Cloud Firestore)
+│   └── jwt.js                # Konfigurasi JWT
 ├── controllers/
-│   ├── authController.js   # Login/logout logic
-│   └── galleryController.js # CRUD gallery
-├── database/
-│   └── schema.sql          # SQL schema + dummy data
+│   ├── authController.js     # Login & session verification
+│   ├── categoryController.js # CRUD kategori
+│   └── galleryController.js  # CRUD gallery + upload/delete gambar
 ├── middleware/
-│   ├── authMiddleware.js   # JWT verification
-│   └── adminMiddleware.js  # Admin role check
+│   ├── authMiddleware.js     # JWT verification
+│   └── adminMiddleware.js    # Admin role check
 ├── models/
-│   └── Gallery.js          # Gallery model (Supabase)
+│   ├── Category.js           # Category model (Firestore)
+│   ├── Gallery.js            # Gallery model (Firestore + Cloudinary)
+│   └── User.js               # User model (Firestore)
 ├── routes/
-│   ├── authRoutes.js       # Auth endpoints
-│   └── galleryRoutes.js    # Gallery endpoints
-├── server.js               # Entry point
+│   ├── authRoutes.js         # Auth endpoints
+│   ├── categoryRoutes.js     # Category endpoints
+│   └── galleryRoutes.js      # Gallery endpoints
+├── scripts/
+│   ├── backup.js             # Export Firestore ke file JSON lokal
+│   ├── restore.js            # Restore Firestore dari file backup JSON
+│   └── seed.js               # Seed akun admin, kategori default, & sample data
+├── server.js                 # Entry point
 ├── package.json
-├── vercel.json             # Vercel deployment config
-└── README.md
+└── vercel.json               # Vercel deployment config
 ```
 
-## ⚙️ Instalasi
+## Instalasi & Setup
 
 ### 1. Install Dependencies
 
@@ -46,30 +53,53 @@ npm install
 
 ### 2. Setup Environment Variables
 
-Buat file `.env`:
+Copy `.env.example` menjadi `.env`, lalu isi kredensial:
 
 ```env
 PORT=3000
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_KEY=your-anon-key
+NODE_ENV=development
+FRONTEND_URL=http://localhost:5173
+
+# Firebase Admin SDK (dari Firebase Console -> Project Settings -> Service Accounts)
+FIREBASE_PROJECT_ID=smartonedev-sda
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@smartonedev-sda.iam.gserviceaccount.com
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+
+# Alternatif lokal: simpan JSON Service Account sebagai backend/serviceAccountKey.json
+# FIREBASE_SERVICE_ACCOUNT_PATH=./serviceAccountKey.json
+
+# Cloudinary (https://cloudinary.com/console)
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+CLOUDINARY_FOLDER=smartonedev/gallery
+
+# JWT & Admin Default
 JWT_SECRET=your-secret-key-min-32-chars
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=admin123
+JWT_EXPIRES_IN=7d
+ADMIN_USERNAME=smartonedev
+ADMIN_PASSWORD=your-secure-password
 ```
 
-### 3. Setup Supabase Database
+### 3. Seed Data Awal Firestore
 
-1. Buka Supabase Dashboard → SQL Editor
-2. Copy isi file `database/schema.sql`
-3. Jalankan query untuk membuat tabel dan data dummy
+```bash
+# Seed admin user + 4 kategori default (Web App, Mobile, Game, IoT)
+npm run seed
 
-### 4. Setup Supabase Storage
+# Atau sekalian dengan 6 sample project dummy
+npm run seed:samples
+```
 
-1. Buat bucket baru: `gallery-images`
-2. Set bucket sebagai **Public**
-3. Tambahkan policies:
-   - **allow_public_read** (SELECT): `bucket_id = 'gallery-images'`
-   - **allow_public_insert** (INSERT): `bucket_id = 'gallery-images'`
+### 4. Backup & Restore Database
+
+```bash
+# Export seluruh collection Firestore ke backend/backups/firestore-backup-*.json
+npm run backup
+
+# Restore dari file backup JSON
+npm run restore -- backups/firestore-backup-2026-xx-xx.json
+```
 
 ### 5. Jalankan Server
 
@@ -81,112 +111,37 @@ npm run dev
 npm start
 ```
 
-Server berjalan di `http://localhost:3000`
+Server berjalan di `http://localhost:3000`.
 
-## 📡 API Endpoints
+## API Endpoints
 
 ### Authentication
-
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/api/auth/login` | Admin login |
+| GET | `/api/auth/me` | Get authenticated admin info (protected) |
 
-**Request Body:**
-```json
-{
-  "username": "admin",
-  "password": "admin123"
-}
-```
+### Categories
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/categories` | Get all categories |
+| GET | `/api/categories/:id` | Get category by ID |
+| POST | `/api/categories` | Create category (admin) |
+| PUT | `/api/categories/:id` | Update category (admin) |
+| DELETE | `/api/categories/:id` | Delete category if unused (admin) |
 
-### Gallery (Public)
-
+### Gallery
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/gallery` | Get all projects |
+| GET | `/api/gallery/slug/:slug` | Get project by slug |
 | GET | `/api/gallery/:id` | Get project by ID |
+| POST | `/api/gallery` | Create project (admin) |
+| PUT | `/api/gallery/:id` | Update project (admin) |
+| DELETE | `/api/gallery/:id` | Delete project (admin) |
+| POST | `/api/gallery/upload` | Upload image to Cloudinary (admin) |
+| DELETE | `/api/gallery/image/:filename` | Delete image from Cloudinary (admin) |
 
-### Gallery (Protected - Admin Only)
+## Deployment (Vercel)
 
-Semua endpoint protected memerlukan header:
-```
-Authorization: Bearer <token>
-```
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/gallery` | Create project |
-| PUT | `/api/gallery/:id` | Update project |
-| DELETE | `/api/gallery/:id` | Delete project |
-| POST | `/api/gallery/upload` | Upload image |
-
-### Upload Image
-
-**Request:**
-- Method: `POST`
-- URL: `/api/gallery/upload`
-- Content-Type: `multipart/form-data`
-- Body: `image` (file)
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "url": "https://xxx.supabase.co/storage/v1/object/public/gallery-images/123456.jpg",
-    "filename": "123456.jpg"
-  }
-}
-```
-
-## 📊 Data Structure
-
-### Gallery Object
-
-```json
-{
-  "id": "uuid",
-  "title": "Sistem Presensi QR",
-  "slug": "sistem-presensi-qr",
-  "category": "Web App",
-  "description": "Deskripsi project...",
-  "image": "https://...",
-  "screenshots": [
-    { "url": "https://...", "caption": "Dashboard" }
-  ],
-  "story": {
-    "problem": "Masalah yang diselesaikan",
-    "solution": "Solusi yang ditawarkan",
-    "impact": "Dampak positif"
-  },
-  "timeline": [
-    { "date": "Okt 2024", "event": "Development", "description": "..." }
-  ],
-  "team": [
-    { "name": "Ahmad", "role": "Developer", "avatar": null }
-  ],
-  "tech": ["Laravel", "MySQL"],
-  "author": "RPL Angkatan 24",
-  "stars": 120,
-  "collab_open": true,
-  "bg_gradient": "from-red-600 to-red-900",
-  "icon": "globe",
-  "github_url": "https://github.com/...",
-  "demo_url": "https://...",
-  "created_at": "2024-01-01T00:00:00Z",
-  "updated_at": "2024-01-01T00:00:00Z"
-}
-```
-
-## 🚀 Deployment (Vercel)
-
-1. Push ke GitHub
-2. Import repository di Vercel
-3. Set Environment Variables di Vercel Dashboard
-4. Deploy!
-
-Lihat `DEPLOYMENT_GUIDE.md` di root folder untuk panduan lengkap.
-
-## 📝 License
-
-MIT License - SmartOneDev Team
+Lihat [DEPLOYMENT_GUIDE.md](../DEPLOYMENT_GUIDE.md) di root folder untuk panduan lengkap.

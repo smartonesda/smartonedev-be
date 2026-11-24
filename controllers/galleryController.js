@@ -172,7 +172,7 @@ export const galleryController = {
             const ext = file.originalname.split('.').pop()
             const filename = `${timestamp}.${ext}`
 
-            // Upload to Supabase Storage with contentType
+            // Upload to Cloudinary with contentType
             const publicUrl = await Gallery.uploadImage(file.buffer, filename, file.mimetype)
 
             return res.json({
